@@ -60,14 +60,68 @@ def event_create_api(request, pk):
         return JsonResponse({'error': 'Invalid date/time values.'}, status=400)
 
     try:
-        ev = ScheduledEvent.objects.create(
-            contact=contact,
-            name=name,
-            start_date=sd,
-            start_time=st,
-            end_date=ed,
-            end_time=et,
-        )
+        # To avoid race conditions between concurrent creators we use a
+        # transactional section. For Postgres we acquire a lightweight
+        # advisory lock so only one creator at a time will perform the
+        # overlap check + create sequence. This prevents two requests from
+        # both seeing "no conflicting rows" and inserting overlapping
+        # events.
+        from django.db import connection, transaction
+        from django.db.models import Q
+
+        with transaction.atomic():
+            # If Postgres, acquire an advisory lock for the duration of the TX.
+            if getattr(connection, 'vendor', '') == 'postgresql':
+                try:
+                    with connection.cursor() as cur:
+                        # chosen arbitrary numeric key; keep small and stable
+                        cur.execute('SELECT pg_advisory_xact_lock(%s);', [123456789])
+                except Exception:
+                    # If advisory lock acquisition fails, continue without it
+                    # but still run the guarded checks below.
+                    pass
+
+            # Narrow candidates by date overlap to reduce rows fetched
+            candidates = ScheduledEvent.objects.select_for_update().filter(
+                Q(end_date__gte=sd) & Q(start_date__lte=ed)
+            )
+
+            conflict = None
+            for c in candidates:
+                try:
+                    existing_start = datetime.combine(c.start_date, c.start_time)
+                    existing_end = datetime.combine(c.end_date, c.end_time)
+                except Exception:
+                    # If a stored row has bad data, skip it rather than crash the API.
+                    continue
+
+                # Overlap condition: new_start < existing_end && new_end > existing_start
+                if start_dt < existing_end and end_dt > existing_start:
+                    conflict = c
+                    break
+
+            if conflict:
+                return JsonResponse({
+                    'error': 'Event overlaps an existing scheduled event.',
+                    'conflict': {
+                        'id': conflict.pk,
+                        'contact_id': getattr(conflict, 'contact_id', conflict.contact.pk if getattr(conflict, 'contact', None) else None),
+                        'name': conflict.name,
+                        'start_date': conflict.start_date.isoformat(),
+                        'start_time': conflict.start_time.isoformat(),
+                        'end_date': conflict.end_date.isoformat(),
+                        'end_time': conflict.end_time.isoformat(),
+                    }
+                }, status=400)
+
+            ev = ScheduledEvent.objects.create(
+                contact=contact,
+                name=name,
+                start_date=sd,
+                start_time=st,
+                end_date=ed,
+                end_time=et,
+            )
     except Exception as exc:
         return JsonResponse({'error': str(exc)}, status=400)
 
@@ -249,6 +303,49 @@ def contact_create_api(request):
         'events': list(ScheduledEvent.objects.filter(contact=c).order_by('start_date', 'start_time').values('id', 'name', 'start_date', 'start_time', 'end_date', 'end_time')),
     }
     return JsonResponse(data, status=201)
+
+
+def events_list_api(request):
+    """Return JSON list of all scheduled events with minimal contact info.
+
+    This endpoint is used by the calendar view on the client to render a
+    chronological list of upcoming events. Fields returned:
+    id, name, start_date, start_time, end_date, end_time, contact_id, contact_first_name, contact_last_name
+    """
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+
+    events = list(
+        ScheduledEvent.objects.select_related('contact')
+        .order_by('start_date', 'start_time')
+        .values(
+            'id', 'name', 'start_date', 'start_time', 'end_date', 'end_time',
+            'contact_id',
+        )
+    )
+
+    # attach contact names in plain dict to avoid extra ORM work on the client
+    out = []
+    # build a small map of contact_id -> name for faster lookup
+    contact_ids = {e['contact_id'] for e in events}
+    contacts = {c.pk: c for c in Contact.objects.filter(pk__in=contact_ids)} if contact_ids else {}
+    for e in events:
+        c = contacts.get(e['contact_id'])
+        out.append(
+            {
+                'id': e['id'],
+                'name': e['name'],
+                'start_date': e['start_date'].isoformat(),
+                'start_time': e['start_time'].isoformat(),
+                'end_date': e['end_date'].isoformat(),
+                'end_time': e['end_time'].isoformat(),
+                'contact_id': e['contact_id'],
+                'contact_first_name': c.first_name if c else '',
+                'contact_last_name': c.last_name if c else '',
+            }
+        )
+
+    return JsonResponse({'events': out})
 
 
 def contact_delete_api(request, pk):

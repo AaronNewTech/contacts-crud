@@ -33,6 +33,16 @@
       </button>
     </div>
 
+    <!-- Top navigation: Contacts and Events list views -->
+    <nav id="main-nav" class="main-nav">
+      <a href="#" id="nav-contacts" class="nav-link active" data-view="contacts"
+        >Contacts</a
+      >
+      <a href="#" id="nav-calendar" class="nav-link" data-view="calendar"
+        >Events List</a
+      >
+    </nav>
+
     <div class="layout">
       <div id="contact-list">
         <div class="header">
@@ -85,6 +95,106 @@
           }
         }
         return cookieValue;
+      }
+
+      // Render a simple events list view of all events
+      function renderCalendar(events) {
+        const detailEl = document.getElementById('contact-detail');
+        if (!detailEl) return;
+        let html = `<div class="calendar-view"><h2>Events list</h2>`;
+        if (!events || !events.length) {
+          html += `<div class="no-events">No scheduled events.</div>`;
+        } else {
+          html += `<div class="calendar-list">`;
+          events.forEach((e) => {
+            const startAttr = `${e.start_date}T${e.start_time}`;
+            const endAttr = `${e.end_date}T${e.end_time}`;
+            const contactName =
+              `${e.contact_first_name || ''} ${e.contact_last_name || ''}`.trim();
+            html += `
+              <div class="event-row calendar-event" data-event-id="${e.id}" data-start="${startAttr}" data-end="${endAttr}">
+                <div class="event-content">
+                  <div class="event-text">
+                    <div class="event-header">
+                      <div class="event-title">${e.name || '(no title)'} — <span class="event-contact">${contactName}</span></div>
+                      <a href="#" class="delete-event" data-event-id="${e.id}" aria-label="Remove event"><img src="{% static 'images/Group 3.png' %}" alt="Remove" /></a>
+                    </div>
+                    <div class="event-meta">
+                      <div class="event-start"><span class="meta-label">Start</span>: ${formatDate(e.start_date)} at ${formatTimeFromParts(e.start_date, e.start_time)}</div>
+                      <div class="event-end"><span class="meta-label">End</span>: ${formatDate(e.end_date)} at ${formatTimeFromParts(e.end_date, e.end_time)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>`;
+          });
+          html += `</div>`;
+        }
+        html += `</div>`;
+        detailEl.innerHTML = html;
+      }
+
+      async function loadCalendar() {
+        const detailEl = document.getElementById('contact-detail');
+        if (!detailEl) return;
+        try {
+          const res = await fetch('/contacts/api/events/');
+          if (!res.ok) throw new Error('Failed to load events');
+          const data = await res.json();
+          renderCalendar(data.events || []);
+        } catch (err) {
+          console.error(err);
+          detailEl.innerHTML = '<p>Error loading events.</p>';
+        }
+      }
+
+      // Helpers to format date/time in a user-friendly form like
+      // "Mar 17, 2026 at 2:32 PM" and "Mar 17, 2026 until 2:36 PM"
+      const _dateFormatter = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const _timeFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      function _toDate(dateStr, timeStr) {
+        if (!dateStr) return null;
+        // If time provided, combine; otherwise assume midnight local time
+        const iso = timeStr ? `${dateStr}T${timeStr}` : `${dateStr}T00:00`;
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return null;
+        return d;
+      }
+
+      function formatDate(dateStr, timeStr) {
+        const d = _toDate(dateStr, timeStr);
+        if (!d) return '';
+        return _dateFormatter.format(d);
+      }
+
+      function formatTimeFromParts(dateStr, timeStr) {
+        const d = _toDate(dateStr, timeStr);
+        if (!d) return '';
+        return _timeFormatter.format(d);
+      }
+
+      function formatStart(dateStr, timeStr) {
+        if (!dateStr && !timeStr) return '';
+        const datePart = formatDate(dateStr, timeStr);
+        const timePart = formatTimeFromParts(dateStr, timeStr);
+        if (!timePart) return datePart;
+        return `${datePart} at ${timePart}`;
+      }
+
+      function formatUntil(dateStr, timeStr) {
+        if (!dateStr && !timeStr) return '';
+        const datePart = formatDate(dateStr, timeStr);
+        const timePart = formatTimeFromParts(dateStr, timeStr);
+        if (!timePart) return datePart;
+        return `${datePart} until ${timePart}`;
       }
       // Render detail HTML from a data object (used for server-fetched and local-new contacts)
       function renderDetail(data) {
@@ -153,14 +263,18 @@
         html += `<h3>Events</h3><div id="events">`;
         if (data.events && data.events.length) {
           data.events.forEach((e) => {
-            // include a machine-friendly data-start attribute for chronological ordering
+            // include machine-friendly data-start and data-end attributes for chronological ordering and overlap checks
             const startAttr = `${e.start_date}T${e.start_time}`;
+            const endAttr = `${e.end_date}T${e.end_time}`;
             html +=
-              `<div class="event-row" data-event-id="${e.id}" data-start="${startAttr}">` +
+              `<div class="event-row" data-event-id="${e.id}" data-start="${startAttr}" data-end="${endAttr}">` +
               `<div class="event-content">` +
               `<div class="event-text">` +
               `<div class="event-title">${e.name || ''}</div>` +
-              `<div class="event-meta">${e.start_date} ${e.start_time} — ${e.end_date} ${e.end_time}</div>` +
+              `<div class="event-meta">` +
+              `<div class="event-start"><span class="meta-label">Start</span>: ${formatDate(e.start_date)} at ${formatTimeFromParts(e.start_date, e.start_time)}</div>` +
+              `<div class="event-end"><span class="meta-label">End</span>: ${formatDate(e.end_date)} at ${formatTimeFromParts(e.end_date, e.end_time)}</div>` +
+              `</div>` +
               `</div>` +
               `<a href="#" class="delete-event" data-event-id="${e.id}" aria-label="Remove event"><img src="{% static 'images/Group 3.png' %}" alt="Remove" /></a>` +
               `</div>` +
@@ -472,6 +586,57 @@
 
         const list = document.getElementById('contact-list');
 
+        // Top navigation handlers
+        const navContacts = document.getElementById('nav-contacts');
+        const navCalendar = document.getElementById('nav-calendar');
+
+        function showContactsView() {
+          // show contacts column and load first contact if none selected
+          const cl = document.getElementById('contact-list');
+          if (cl) cl.style.display = '';
+          if (navContacts) {
+            navContacts.classList.add('active');
+            navCalendar && navCalendar.classList.remove('active');
+          }
+          // If no detail currently rendered for a contact, load first contact
+          const active = document.querySelector('.contact-item.active');
+          if (active && active.dataset.pk) {
+            loadDetail(active.dataset.pk);
+          } else {
+            const first = document.querySelector('.contact-item[data-pk]');
+            if (first) {
+              setActiveItem(first);
+              loadDetail(first.dataset.pk);
+            } else {
+              document.getElementById('contact-detail').innerHTML =
+                '<p>No contacts</p>';
+            }
+          }
+        }
+
+        async function showCalendarView() {
+          const cl = document.getElementById('contact-list');
+          if (cl) cl.style.display = 'none';
+          if (navCalendar) {
+            navCalendar.classList.add('active');
+            navContacts && navContacts.classList.remove('active');
+          }
+          await loadCalendar();
+        }
+
+        if (navContacts) {
+          navContacts.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            showContactsView();
+          });
+        }
+        if (navCalendar) {
+          navCalendar.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            showCalendarView();
+          });
+        }
+
         list.addEventListener('click', (e) => {
           const item = e.target.closest('.contact-item');
           if (!item) return;
@@ -685,6 +850,45 @@
               );
               return;
             }
+            // Client-side sanity checks: end must be after start and no overlap with existing events for this contact
+            const newStart = new Date(`${start_date}T${start_time}`);
+            const newEnd = new Date(`${end_date}T${end_time}`);
+            if (
+              Number.isNaN(newStart.getTime()) ||
+              Number.isNaN(newEnd.getTime()) ||
+              newEnd <= newStart
+            ) {
+              showBanner(
+                'Please ensure the end time is after the start time.',
+                'error',
+              );
+              return;
+            }
+            const eventsContainerCheck = document.getElementById('events');
+            if (eventsContainerCheck) {
+              const existingRows =
+                eventsContainerCheck.querySelectorAll('.event-row');
+              for (const other of existingRows) {
+                const ostart = other.dataset.start;
+                const oend = other.dataset.end;
+                if (!ostart || !oend) continue;
+                const otherStart = new Date(ostart);
+                const otherEnd = new Date(oend);
+                if (
+                  Number.isNaN(otherStart.getTime()) ||
+                  Number.isNaN(otherEnd.getTime())
+                )
+                  continue;
+                // overlap if newStart < otherEnd && newEnd > otherStart
+                if (newStart < otherEnd && newEnd > otherStart) {
+                  showBanner(
+                    'This event overlaps with an existing event for this contact.',
+                    'error',
+                  );
+                  return;
+                }
+              }
+            }
             try {
               const res = await fetch(`/contacts/api/${pk}/events/create/`, {
                 method: 'POST',
@@ -717,11 +921,16 @@
                 row.dataset.eventId = created.id;
                 // set data-start for ordering (ISO-like)
                 row.dataset.start = `${created.start_date}T${created.start_time}`;
+                // also store end for future overlap checks
+                row.dataset.end = `${created.end_date}T${created.end_time}`;
                 row.innerHTML = `
                   <div class="event-content">
                     <div class="event-text">
                       <div class="event-title">${created.name || ''}</div>
-                      <div class="event-meta">${created.start_date} ${created.start_time} — ${created.end_date} ${created.end_time}</div>
+                      <div class="event-meta">
+                        <div class="event-start"><span class="meta-label">Start</span>: ${formatDate(created.start_date)} at ${formatTimeFromParts(created.start_date, created.start_time)}</div>
+                        <div class="event-end"><span class="meta-label">End</span>: ${formatDate(created.end_date)} at ${formatTimeFromParts(created.end_date, created.end_time)}</div>
+                      </div>
                     </div>
                     <a href="#" class="delete-event" data-event-id="${created.id}" aria-label="Remove event"><img src="{% static 'images/Group 3.png' %}" alt="Remove" /></a>
                   </div>`;

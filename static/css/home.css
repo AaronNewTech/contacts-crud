@@ -236,27 +236,53 @@ div#contact-detail a#add-method.image-button {
 
 /* Event list and rows */
 .event-row {
+    
   margin-bottom: 0.5rem;
 }
 .event-row .event-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  
+  justify-content: flex-start;
+  gap: 0.5rem;
   width: 100%;
 }
-.event-row .event-text {
-  flex: 1;
-}
+
 .event-row .event-text .event-title {
   font-weight: 600;
+}
+/* truncate long titles so the remove icon stays visible */
+.event-row .event-text .event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .event-row .event-text .event-meta {
   color: #555;
   font-size: 0.95rem;
 }
+
+/* Stack start and end lines vertically and style labels */
+.event-row .event-text .event-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.event-row .event-text .event-meta .meta-label {
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+.event-row .event-text .event-meta .event-start,
+.event-row .event-text .event-meta .event-end {
+  color: #333;
+  font-size: 0.95rem;
+}
 .delete-event {
   display: none;
-  margin-left: 8px;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 4px;
 }
 .delete-event img {
   height: 18px;
@@ -264,6 +290,7 @@ div#contact-detail a#add-method.image-button {
   cursor: pointer;
   display: block;
 }
+
 .event-row:hover .delete-event {
   display: inline-flex;
 }
@@ -392,6 +419,26 @@ div#contact-detail a#add-method.image-button {
   font-weight: 700;
 }
 
+/* Top navigation */
+.main-nav {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e6eefc;
+}
+.main-nav .nav-link {
+  color: #034f8a;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.main-nav .nav-link.active {
+  background: #e6f1ff;
+  color: #032b50;
+}
+
 /* small layout tweaks requested earlier */
 .method-controls {
   margin-top: 0.75rem;
@@ -406,3 +453,4 @@ div#contact-detail a#add-method.image-button {
   margin-right: 8px;
   vertical-align: middle;
 }
+
