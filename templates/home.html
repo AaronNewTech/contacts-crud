@@ -114,6 +114,8 @@
             <div
               class="contact-item"
               data-pk="{{ c.pk }}"
+              data-first="{{ c.first_name }}"
+              data-last="{{ c.last_name }}"
               role="button"
               tabindex="0"
               aria-pressed="false"
@@ -321,6 +323,68 @@
             if (select) select.name = `method_type_${i}`;
             if (input) input.name = `method_value_${i}`;
           });
+        }
+
+        // Compare two names by last name then first name, case-insensitive.
+        function compareNames(aFirst, aLast, bFirst, bLast) {
+          const aL = (aLast || '').toLowerCase();
+          const bL = (bLast || '').toLowerCase();
+          if (aL < bL) return -1;
+          if (aL > bL) return 1;
+          const aF = (aFirst || '').toLowerCase();
+          const bF = (bFirst || '').toLowerCase();
+          if (aF < bF) return -1;
+          if (aF > bF) return 1;
+          return 0;
+        }
+
+        // Place a list item into the correct alphabetical position by name.
+        function placeListItemByName(itemEl, firstName, lastName) {
+          if (!itemEl) return;
+          const ul = document.querySelector('#contact-list ul');
+          if (!ul) return;
+          const li = itemEl.closest('li') || document.createElement('li');
+          // ensure the item is in a li we can move
+          if (!itemEl.closest('li')) li.appendChild(itemEl);
+
+          // Find the first existing persisted contact that should come after this one
+          const items = Array.from(ul.querySelectorAll('.contact-item')).filter(
+            (it) => it !== itemEl && it.dataset.pk,
+          );
+          let inserted = false;
+          for (const other of items) {
+            // Prefer structured data attributes (data-first, data-last). Fall back to parsing text.
+            const oFirstName =
+              other.dataset.first ||
+              (() => {
+                const text = (other.textContent || '').trim();
+                const parts = text.split(/\s+/);
+                return parts.slice(0, -1).join(' ');
+              })();
+            const oLastName =
+              other.dataset.last ||
+              (() => {
+                const text = (other.textContent || '').trim();
+                const parts = text.split(/\s+/);
+                return parts.slice(-1)[0] || '';
+              })();
+
+            if (compareNames(firstName, lastName, oFirstName, oLastName) < 0) {
+              // insert before other.parent li
+              const otherLi = other.closest('li');
+              if (otherLi) {
+                ul.insertBefore(li, otherLi);
+              } else {
+                ul.insertBefore(li, other);
+              }
+              inserted = true;
+              break;
+            }
+          }
+          if (!inserted) {
+            // append to end
+            ul.appendChild(li);
+          }
         }
 
         // validation helper used by save and submit flows
@@ -538,9 +602,17 @@
                 // re-render detail pane with updated data and confirm to the user
                 showBanner('Contact updated successfully.', 'success');
                 loadDetail(updated.id);
-                // update the name in the list
-                if (activeItem)
+                // update the name in the list and reposition if needed
+                if (activeItem) {
+                  activeItem.dataset.first = updated.first_name;
+                  activeItem.dataset.last = updated.last_name;
                   activeItem.textContent = `${updated.first_name} ${updated.last_name}`;
+                  placeListItemByName(
+                    activeItem,
+                    updated.first_name,
+                    updated.last_name,
+                  );
+                }
               } else {
                 // new (not yet persisted) -> create
                 const res = await fetch('/contacts/api/create/', {
@@ -561,7 +633,16 @@
                 // mark list item with real pk and update its display
                 activeItem.dataset.pk = created.id;
                 activeItem.removeAttribute('data-new');
+                // store structured name data and update visible text
+                activeItem.dataset.first = created.first_name;
+                activeItem.dataset.last = created.last_name;
                 activeItem.textContent = `${created.first_name} ${created.last_name}`;
+                // insert the new item into the correct alphabetical position
+                placeListItemByName(
+                  activeItem,
+                  created.first_name,
+                  created.last_name,
+                );
                 // inform the user and load persisted detail
                 showBanner('Contact saved successfully.', 'success');
                 loadDetail(created.id);
