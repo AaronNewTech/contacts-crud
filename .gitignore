@@ -1,0 +1,15 @@
+.venv/
+db.sqlite3
+.env
+contacts_fixture.json
+staticfiles/
+public/
+staticfiles/staticfiles/
+staticfiles/
+data.json
+dump_list.txt
+prod_before_contacts_load.dump
+prod_before_fix.dump
+prod_data_before_fix.json
+prod_snapshot_before_restore_attempt.dump
+__pycache__/

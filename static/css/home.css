@@ -1,0 +1,245 @@
+h1 {
+  font-family: Lato;
+  font-weight: 400;
+  font-size: 36px;
+  /* leading-trim: NONE; */
+  line-height: 100%;
+  letter-spacing: 0%;
+  color: #000000;
+  width: 141;
+  height: 43;
+  top: 14px;
+  left: 17px;
+  /* angle: 0 deg; */
+  opacity: 1;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.contact-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  /* padding: 0.3rem 0.3rem; */
+  /* border: 14px; */
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  /* margin-left: 3%;
+  padding-right: -8%; */
+}
+
+.contact-item:hover {
+  background: #579aff;
+  color: #fff;
+  opacity: 0.5;
+}
+
+.contact-item:focus {
+  /* outline: 3px solid rgba(21,156,228,0.35); */
+  background: #579aff;
+  color: #fff;
+  outline-offset: 2px;
+  /* background: rgba(0,0,0,0.03); */
+}
+
+/* optional: active state */
+.contact-item.active {
+  background: rgba(21, 156, 228, 0.08);
+}
+
+/* Layout: keep list on the left and details on the right */
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.layout {
+  display: flex;
+  gap: 1rem;
+  min-height: 100vh;
+  align-items: stretch;
+}
+
+#contact-list {
+  width: 20%;
+  min-width: 220px; /* keep readable on narrow screens */
+  max-width: 220px; /* prevent it from dominating on wide screens */
+  box-sizing: border-box;
+  padding: 1rem;
+  overflow-y: auto;
+  background: #f8faff;
+}
+
+#contact-detail {
+  flex: 1 1 0;
+  min-width: 0; /* allow flex children to shrink properly */
+  padding: 1rem 2rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.contact-item {
+  padding: 0.5rem 0.6rem;
+}
+
+.contact-item.active {
+  background: #579aff;
+  color: #fff;
+}
+
+/* Remove bullets and default padding for the contact list */
+#contact-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Image button styling: remove default link chrome, keep image-only look */
+.image-button {
+  display: inline-block;
+  padding: 0;
+  margin: 0 0.25rem;
+  background: none;
+  border: 0;
+  text-decoration: none;
+  color: #579aff; /* fallback color for accessible text */
+}
+
+.image-button img {
+  display: block;
+  height: 28px;
+  width: auto;
+}
+
+/* Specific anchors used as image buttons */
+#add-method {
+  text-decoration: none;
+  color: #579aff;
+}
+
+#add-method img,
+#save-contact img {
+  vertical-align: middle;
+}
+
+#add-method:hover img,
+#save-contact:hover img,
+#cancel-contact:hover img,
+#delete-contact:hover img {
+  filter: brightness(0.75);
+}
+
+/* Position the save control at the bottom-right of the viewport so it's
+   visually separate from the Add/Methods controls. Use fixed positioning
+   and keep it accessible on small screens. */
+#save-contact {
+  position: fixed;
+  right: 0.5rem;
+  bottom: 1rem;
+  z-index: 1200;
+  border-radius: 6px;
+  padding: 6px; /* clickable area */
+}
+
+#cancel-contact {
+  position: fixed;
+  right: 6rem;
+  bottom: 1rem;
+  z-index: 1200;
+  border-radius: 6px;
+  padding: 6px; /* clickable area */
+}
+
+#delete-contact {
+  position: fixed;
+  left: 14.5rem;
+  bottom: 1rem;
+  z-index: 1200;
+  border-radius: 6px;
+  padding: 6px; /* clickable area */
+}
+
+/* 
+#save-contact img {
+  height: 36px;
+  width: auto;
+  display: block;
+} */
+
+/* Stronger specificity for detail-pane image buttons so inline styles aren't required */
+#contact-detail .image-button,
+#contact-detail a.image-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0 0.25rem;
+  background: none;
+  border: 0;
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+/* Nudge the add-method control up slightly for visual alignment */
+#add-method {
+  /* small upward shift; tweak px value to taste */
+  transform: translateY(-3px);
+}
+
+/* Fallback: if something else is overriding, use a slightly more specific rule */
+div#contact-detail a#add-method.image-button {
+  transform: translateY(-3px);
+}
+
+/* Method row delete icon styling */
+.method-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.delete-method {
+  display: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.delete-method img {
+  height: 18px;
+  width: auto;
+  cursor: pointer;
+  display: block;
+}
+
+.method-row:hover .delete-method {
+  display: inline-flex;
+}
+
+/* visual marker for invalid field */
+.invalid {
+  border: 1px solid #e33737 !important;
+  box-shadow: 0 0 0 3px rgba(227, 55, 55, 0.12);
+}
+
+/* Style the contact method select and value input to match requested look */
+#contact-detail .method-row select,
+#contact-detail .method-row input[name^='method_value_'] {
+  border: 1px solid #d7e7ff;
+  background-color: #f9fbff;
+}
+
+#first-name,
+#last-name {
+  background-color: #f9fbff;
+  border: 1px solid #d7e7ff;
+  opacity: 1; /* Ensures the color is vibrant in Firefox */
+}

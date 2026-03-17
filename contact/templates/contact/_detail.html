@@ -1,0 +1,16 @@
+{% load static %}
+
+<div class="contact-detail">
+  <h2>{{ contact.first_name }} {{ contact.last_name }}</h2>
+  <p><strong>Created:</strong> {{ contact.created_at }}</p>
+  <p><strong>Updated:</strong> {{ contact.updated_at }}</p>
+
+  <h3>Contact methods</h3>
+  <ul>
+    {% for method in contact.contact_methods.all %}
+    <li>{{ method.get_type_display }}: {{ method.value }}</li>
+    {% empty %}
+    <li>No contact methods</li>
+    {% endfor %}
+  </ul>
+</div>
