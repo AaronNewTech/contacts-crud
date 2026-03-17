@@ -367,17 +367,34 @@
             if (mi) mi.classList.add('invalid');
             valid = false;
           }
+          // helper: simple email format check (performs a reasonable client-side
+          // check; server enforces canonical validation as well)
+          function isValidEmailAddress(email) {
+            // RFC 5322-ish liberal regex (not perfect but fine for client-side)
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+          }
+
           // Check for duplicate email addresses within the form (per-contact constraint)
           if (valid) {
             const rows = formEl.querySelectorAll('.method-row');
             const seen = new Map();
             let duplicateFound = false;
+            let formatInvalid = false;
             rows.forEach((row, idx) => {
               const select = row.querySelector('select');
               const input = row.querySelector('input');
               if (!select || !input) return;
               const type = (select.value || '').toLowerCase();
               const val = (input.value || '').trim();
+              // If this is an email, validate format first
+              if (type === 'email' && val) {
+                if (!isValidEmailAddress(val)) {
+                  input.classList.add('invalid');
+                  // focus the first invalid later; set flag
+                  formatInvalid = true;
+                  valid = false;
+                }
+              }
               if (type === 'email' && val) {
                 const norm = val.toLowerCase();
                 if (seen.has(norm)) {
@@ -392,6 +409,15 @@
                 }
               }
             });
+            if (formatInvalid) {
+              const firstInvalid = formEl.querySelector('.invalid');
+              if (firstInvalid) firstInvalid.focus();
+              return {
+                valid: false,
+                message: 'Please enter a valid email address.',
+              };
+            }
+
             if (duplicateFound) {
               const firstInvalid = formEl.querySelector('.invalid');
               if (firstInvalid) firstInvalid.focus();
