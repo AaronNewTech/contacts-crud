@@ -9,6 +9,7 @@ from .views import contact_create_api
 from .views import contact_delete_api
 from .views import event_create_api
 from .views import event_delete_api
+from .views import event_update_api
 from .views import events_list_api
 
 app_name = "contact"
@@ -24,6 +25,7 @@ urlpatterns = [
     path("api/events/", events_list_api, name="events-list"),
     path("api/<int:pk>/events/create/", event_create_api, name="event-create"),
     path("event/<int:pk>/delete/", event_delete_api, name="event-delete"),
+    path("event/<int:pk>/update/", event_update_api, name="event-update"),
     path("api/<int:pk>/delete/", contact_delete_api, name="api-delete"),
     path("method/<int:pk>/delete/", contact_method_delete, name="method-delete"),
     path("<int:pk>/edit/", ContactUpdateView.as_view(), name="edit"),

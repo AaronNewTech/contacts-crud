@@ -196,6 +196,15 @@
         if (!timePart) return datePart;
         return `${datePart} until ${timePart}`;
       }
+      // small helper to escape user-provided text when injecting into HTML
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
       // Render detail HTML from a data object (used for server-fetched and local-new contacts)
       function renderDetail(data) {
         const detailEl = document.getElementById('contact-detail');
@@ -926,13 +935,15 @@
                 row.innerHTML = `
                   <div class="event-content">
                     <div class="event-text">
-                      <div class="event-title">${created.name || ''}</div>
+                      <div class="event-header">
+                        <div class="event-title">${created.name || ''}</div>
+                        <a href="#" class="delete-event" data-event-id="${created.id}" aria-label="Remove event"><img src="{% static 'images/Group 3.png' %}" alt="Remove" /></a>
+                      </div>
                       <div class="event-meta">
                         <div class="event-start"><span class="meta-label">Start</span>: ${formatDate(created.start_date)} at ${formatTimeFromParts(created.start_date, created.start_time)}</div>
                         <div class="event-end"><span class="meta-label">End</span>: ${formatDate(created.end_date)} at ${formatTimeFromParts(created.end_date, created.end_time)}</div>
                       </div>
                     </div>
-                    <a href="#" class="delete-event" data-event-id="${created.id}" aria-label="Remove event"><img src="{% static 'images/Group 3.png' %}" alt="Remove" /></a>
                   </div>`;
                 // Insert in chronological order by start datetime. If an add button is present inside the container,
                 // ensure we insert before it so events appear above the button.
@@ -974,6 +985,188 @@
             e.preventDefault();
             const form = document.getElementById('event-form');
             if (form) form.remove();
+            return;
+          }
+
+          // click on an event row to edit it (inline)
+          const clickedEventRow =
+            e.target.closest && e.target.closest('.event-row');
+          // Only open the inline edit when the click is not inside the edit form
+          // and not on the delete button. Otherwise let specific handlers (save/cancel)
+          // handle clicks inside the form. Also avoid opening if a form already exists.
+          if (
+            clickedEventRow &&
+            !e.target.closest('.delete-event') &&
+            !e.target.closest('#event-edit-form')
+          ) {
+            if (
+              document.getElementById('event-form') ||
+              document.getElementById('event-edit-form')
+            )
+              return;
+            const row = clickedEventRow;
+            // store original content so we can restore on cancel
+            row._origInner = row.innerHTML;
+            const eventId = row.dataset.eventId;
+            const startAttr = row.dataset.start || '';
+            const endAttr = row.dataset.end || '';
+            const [sDate = '', sTime = ''] = startAttr.split('T');
+            const [eDate = '', eTime = ''] = endAttr.split('T');
+            const titleText = (
+              row.querySelector('.event-title')?.textContent || ''
+            ).trim();
+            const formHtml = `
+              <div id="event-edit-form" class="event-form">
+                <input name="event_name" placeholder="Event name (optional)" value="${escapeHtml(titleText)}" />
+                <div class="form-row">
+                  <input type="date" name="start_date" value="${sDate}" />
+                  <input type="time" name="start_time" value="${sTime}" />
+                </div>
+                <div class="form-row">
+                  <input type="date" name="end_date" value="${eDate}" />
+                  <input type="time" name="end_time" value="${eTime}" />
+                </div>
+                <div class="controls">
+                  <a href="#" id="update-event" class="image-button" data-event-id="${eventId}" aria-label="Save event">
+                    <img src="{% static 'images/Component 1.png' %}" alt="Save event" />
+                  </a>
+                  <a href="#" id="cancel-edit-event" class="image-button" aria-label="Cancel edit">
+                    <img src="{% static 'images/Component 2.png' %}" alt="Cancel" />
+                  </a>
+                </div>
+              </div>`;
+            // replace row content with the edit form
+            row.innerHTML = formHtml;
+            return;
+          }
+
+          // update-event: save changes from inline edit form
+          const updateTrigger =
+            e.target.closest && e.target.closest('#update-event');
+          if (updateTrigger) {
+            e.preventDefault();
+            const eventId = updateTrigger.dataset.eventId;
+            const row = updateTrigger.closest('.event-row');
+            const form = row && row.querySelector('#event-edit-form');
+            if (!form || !row) return;
+
+            const name = (
+              form.querySelector('input[name="event_name"]').value || ''
+            ).trim();
+            const start_date = form.querySelector(
+              'input[name="start_date"]',
+            ).value;
+            const start_time = form.querySelector(
+              'input[name="start_time"]',
+            ).value;
+            const end_date = form.querySelector('input[name="end_date"]').value;
+            const end_time = form.querySelector('input[name="end_time"]').value;
+
+            if (!start_date || !start_time || !end_date || !end_time) {
+              showBanner(
+                'Please provide start and end date/time for the event.',
+                'error',
+              );
+              return;
+            }
+            const newStart = new Date(`${start_date}T${start_time}`);
+            const newEnd = new Date(`${end_date}T${end_time}`);
+            if (
+              Number.isNaN(newStart.getTime()) ||
+              Number.isNaN(newEnd.getTime()) ||
+              newEnd <= newStart
+            ) {
+              showBanner(
+                'Please ensure the end time is after the start time.',
+                'error',
+              );
+              return;
+            }
+
+            // client-side overlap check (skip the event being edited)
+            const eventsContainerCheck = document.getElementById('events');
+            if (eventsContainerCheck) {
+              const existingRows =
+                eventsContainerCheck.querySelectorAll('.event-row');
+              for (const other of existingRows) {
+                if (other.dataset.eventId === String(eventId)) continue;
+                const ostart = other.dataset.start;
+                const oend = other.dataset.end;
+                if (!ostart || !oend) continue;
+                const otherStart = new Date(ostart);
+                const otherEnd = new Date(oend);
+                if (
+                  Number.isNaN(otherStart.getTime()) ||
+                  Number.isNaN(otherEnd.getTime())
+                )
+                  continue;
+                if (newStart < otherEnd && newEnd > otherStart) {
+                  showBanner(
+                    'This event overlaps with an existing event for this contact.',
+                    'error',
+                  );
+                  return;
+                }
+              }
+            }
+
+            try {
+              const res = await fetch(`/contacts/event/${eventId}/update/`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                  name,
+                  start_date,
+                  start_time,
+                  end_date,
+                  end_time,
+                }),
+              });
+              const json = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                throw new Error(
+                  (json && json.error) || 'Failed to update event',
+                );
+              }
+
+              // update row dataset and markup
+              row.dataset.start = `${json.start_date}T${json.start_time}`;
+              row.dataset.end = `${json.end_date}T${json.end_time}`;
+              row.innerHTML = `
+                <div class="event-content">
+                  <div class="event-text">
+                    <div class="event-header">
+                      <div class="event-title">${escapeHtml(json.name || '')}</div>
+                      <a href="#" class="delete-event" data-event-id="${json.id}" aria-label="Remove event"><img src="{% static 'images/Group 3.png' %}" alt="Remove" /></a>
+                    </div>
+                    <div class="event-meta">
+                      <div class="event-start"><span class="meta-label">Start</span>: ${formatDate(json.start_date)} at ${formatTimeFromParts(json.start_date, json.start_time)}</div>
+                      <div class="event-end"><span class="meta-label">End</span>: ${formatDate(json.end_date)} at ${formatTimeFromParts(json.end_date, json.end_time)}</div>
+                    </div>
+                  </div>
+                </div>`;
+              showBanner('Event updated.', 'success');
+            } catch (err) {
+              console.error(err);
+              showBanner(err.message || 'Failed to update event', 'error');
+              // keep edit form displayed so user can correct
+            }
+            return;
+          }
+
+          // cancel inline edit: restore original row HTML
+          const cancelEditTrigger =
+            e.target.closest && e.target.closest('#cancel-edit-event');
+          if (cancelEditTrigger) {
+            e.preventDefault();
+            const row = cancelEditTrigger.closest('.event-row');
+            if (row && row._origInner) {
+              row.innerHTML = row._origInner;
+              delete row._origInner;
+            }
             return;
           }
 

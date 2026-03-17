@@ -236,13 +236,12 @@ div#contact-detail a#add-method.image-button {
 
 /* Event list and rows */
 .event-row {
-    
   margin-bottom: 0.5rem;
 }
 .event-row .event-content {
   display: flex;
   align-items: center;
-  
+
   justify-content: flex-start;
   gap: 0.5rem;
   width: 100%;
@@ -256,6 +255,21 @@ div#contact-detail a#add-method.image-button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.event-header {
+  display: flex;
+  /* align to the top so the delete icon stays next to the first line of the title */
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.event-header .event-title {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0; /* allow truncation inside flex */
+}
+.delete-event {
+  /* ensure icon sits at the top of the header */
+  align-self: flex-start;
 }
 .event-row .event-text .event-meta {
   color: #555;
@@ -453,4 +467,3 @@ div#contact-detail a#add-method.image-button {
   margin-right: 8px;
   vertical-align: middle;
 }
-

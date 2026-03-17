@@ -148,6 +148,116 @@ def event_delete_api(request, pk):
     ev.delete()
     return JsonResponse({'deleted': True, 'id': pk})
 
+
+def event_update_api(request, pk):
+    """Update an existing ScheduledEvent.
+
+    Expects POST JSON: { name?, start_date, start_time, end_date, end_time }
+    Returns updated event JSON on success.
+    """
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return HttpResponseBadRequest('Invalid JSON')
+
+    ev = get_object_or_404(ScheduledEvent, pk=pk)
+    contact = ev.contact
+
+    # Required fields
+    start_date = payload.get('start_date')
+    start_time = payload.get('start_time')
+    end_date = payload.get('end_date')
+    end_time = payload.get('end_time')
+
+    if not (start_date and start_time and end_date and end_time):
+        return JsonResponse({'error': 'start_date, start_time, end_date and end_time are required'}, status=400)
+
+    name = payload.get('name', ev.name or '')
+
+    from django.utils.dateparse import parse_date, parse_time
+    sd = parse_date(start_date)
+    st = parse_time(start_time)
+    ed = parse_date(end_date)
+    et = parse_time(end_time)
+    if not (sd and st and ed and et):
+        return JsonResponse({'error': 'Invalid date/time format. Use YYYY-MM-DD for dates and HH:MM or HH:MM:SS for times.'}, status=400)
+
+    try:
+        from datetime import datetime
+
+        start_dt = datetime.combine(sd, st)
+        end_dt = datetime.combine(ed, et)
+        if end_dt < start_dt:
+            return JsonResponse({'error': 'Event end must be the same or after start.'}, status=400)
+    except Exception:
+        return JsonResponse({'error': 'Invalid date/time values.'}, status=400)
+
+    try:
+        from django.db import connection, transaction
+        from django.db.models import Q
+
+        with transaction.atomic():
+            if getattr(connection, 'vendor', '') == 'postgresql':
+                try:
+                    with connection.cursor() as cur:
+                        cur.execute('SELECT pg_advisory_xact_lock(%s);', [123456789])
+                except Exception:
+                    pass
+
+            # Exclude the current event from overlap checks
+            candidates = ScheduledEvent.objects.select_for_update().filter(
+                Q(end_date__gte=sd) & Q(start_date__lte=ed)
+            ).exclude(pk=ev.pk)
+
+            conflict = None
+            for c in candidates:
+                try:
+                    existing_start = datetime.combine(c.start_date, c.start_time)
+                    existing_end = datetime.combine(c.end_date, c.end_time)
+                except Exception:
+                    continue
+
+                if start_dt < existing_end and end_dt > existing_start:
+                    conflict = c
+                    break
+
+            if conflict:
+                return JsonResponse({
+                    'error': 'Event overlaps an existing scheduled event.',
+                    'conflict': {
+                        'id': conflict.pk,
+                        'contact_id': getattr(conflict, 'contact_id', conflict.contact.pk if getattr(conflict, 'contact', None) else None),
+                        'name': conflict.name,
+                        'start_date': conflict.start_date.isoformat(),
+                        'start_time': conflict.start_time.isoformat(),
+                        'end_date': conflict.end_date.isoformat(),
+                        'end_time': conflict.end_time.isoformat(),
+                    }
+                }, status=400)
+
+            # commit update
+            ev.name = name
+            ev.start_date = sd
+            ev.start_time = st
+            ev.end_date = ed
+            ev.end_time = et
+            ev.save()
+    except Exception as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    out = {
+        'id': ev.pk,
+        'name': ev.name,
+        'start_date': ev.start_date.isoformat(),
+        'start_time': ev.start_time.isoformat(),
+        'end_date': ev.end_date.isoformat(),
+        'end_time': ev.end_time.isoformat(),
+    }
+    return JsonResponse(out)
+
 class ContactListView(ListView):
     model = Contact
     template_name = "contact/contact_list.html"
