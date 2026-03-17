@@ -467,3 +467,95 @@ div#contact-detail a#add-method.image-button {
   margin-right: 8px;
   vertical-align: middle;
 }
+
+/* Month grid calendar styles */
+.grid-calendar {
+  max-width: 980px;
+  margin: 0 auto;
+}
+.grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.grid-header .grid-title {
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.calendar-grid .dow {
+  font-weight: 700;
+  text-align: center;
+  padding: 6px 4px;
+  color: #244e6a;
+}
+.calendar-cell {
+  min-height: 90px;
+  border: 1px solid #e6eefc;
+  border-radius: 6px;
+  padding: 6px;
+  box-sizing: border-box;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.calendar-cell.empty {
+  background: transparent;
+  border: 0;
+}
+.cell-day {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #032b50;
+  margin-bottom: 6px;
+}
+.cell-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.calendar-event-item {
+  display: inline-block;
+  text-decoration: none;
+  color: #034f8a;
+  background: #f1f9ff;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calendar-event-item:hover {
+  background: #e6f4ff;
+}
+.more {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 880px) {
+  /* stack into fewer columns on small screens for readability */
+  .calendar-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .calendar-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .calendar-cell {
+    min-height: 70px;
+    padding: 4px;
+  }
+  .grid-header .grid-title {
+    font-size: 1rem;
+  }
+}

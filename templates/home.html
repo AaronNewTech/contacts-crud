@@ -39,7 +39,7 @@
         >Contacts</a
       >
       <a href="#" id="nav-calendar" class="nav-link" data-view="calendar"
-        >Events List</a
+        >Calendar</a
       >
     </nav>
 
@@ -144,6 +144,97 @@
         } catch (err) {
           console.error(err);
           detailEl.innerHTML = '<p>Error loading events.</p>';
+        }
+      }
+
+      // --- Grid month calendar ---
+      // events: array of {id,name,start_date,start_time,end_date,end_time,contact_id,contact_first_name,contact_last_name}
+      function renderCalendarGrid(events, year, month) {
+        const detailEl = document.getElementById('contact-detail');
+        if (!detailEl) return;
+
+        // normalize events into a map keyed by YYYY-MM-DD of start_date
+        const byDate = new Map();
+        (events || []).forEach((e) => {
+          const key = e.start_date; // already YYYY-MM-DD
+          if (!byDate.has(key)) byDate.set(key, []);
+          byDate.get(key).push(e);
+        });
+
+        const firstOfMonth = new Date(year, month, 1);
+        const monthName = firstOfMonth.toLocaleString('default', {
+          month: 'long',
+        });
+        const startDow = firstOfMonth.getDay(); // 0=Sun
+        // days in month
+        const nextMonth = new Date(year, month + 1, 0);
+        const daysInMonth = nextMonth.getDate();
+
+        let html = `<div class="grid-calendar">
+          <div class="grid-header">
+            <button id="cal-prev" class="image-button" aria-label="Previous month">◀</button>
+            <div class="grid-title">${monthName} ${year}</div>
+            <button id="cal-next" class="image-button" aria-label="Next month">▶</button>
+          </div>
+          <div class="calendar-grid">
+            <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div>`;
+
+        // leading empty cells
+        for (let i = 0; i < startDow; i++)
+          html += `<div class="calendar-cell empty"></div>`;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayEvents = byDate.get(iso) || [];
+          html += `<div class="calendar-cell" data-date="${iso}">
+                    <div class="cell-day">${d}</div>
+                    <div class="cell-events">`;
+          // show up to 3 events with truncation
+          dayEvents.slice(0, 3).forEach((ev) => {
+            const titleSafe = escapeHtml(ev.name || '(no title)');
+            const contactName =
+              `${ev.contact_first_name || ''} ${ev.contact_last_name || ''}`.trim();
+            // include machine-friendly start/end attributes so we can open an inline edit form from the grid
+            const startAttr = `${ev.start_date}T${ev.start_time}`;
+            const endAttr = `${ev.end_date}T${ev.end_time}`;
+            html += `<a href="#" class="calendar-event-item" data-event-id="${ev.id}" data-contact-id="${ev.contact_id}" data-start="${startAttr}" data-end="${endAttr}" title="${titleSafe} — ${escapeHtml(contactName)}">${titleSafe}</a>`;
+          });
+          if (dayEvents.length > 3)
+            html += `<div class="more">+${dayEvents.length - 3} more</div>`;
+          html += `</div></div>`;
+        }
+
+        html += `</div></div>`;
+
+        detailEl.innerHTML = html;
+
+        // wire up prev/next buttons
+        document.getElementById('cal-prev').addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const newDate = new Date(year, month - 1, 1);
+          loadCalendarGrid(newDate.getFullYear(), newDate.getMonth());
+        });
+        document.getElementById('cal-next').addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const newDate = new Date(year, month + 1, 1);
+          loadCalendarGrid(newDate.getFullYear(), newDate.getMonth());
+        });
+      }
+
+      async function loadCalendarGrid(year, month) {
+        const detailEl = document.getElementById('contact-detail');
+        if (!detailEl) return;
+        try {
+          const res = await fetch('/contacts/api/events/');
+          if (!res.ok) throw new Error('Failed to load events');
+          const data = await res.json();
+          const now = new Date();
+          const y = typeof year === 'number' ? year : now.getFullYear();
+          const m = typeof month === 'number' ? month : now.getMonth();
+          renderCalendarGrid(data.events || [], y, m);
+        } catch (err) {
+          console.error(err);
+          detailEl.innerHTML = '<p>Error loading calendar.</p>';
         }
       }
 
@@ -630,7 +721,9 @@
             navCalendar.classList.add('active');
             navContacts && navContacts.classList.remove('active');
           }
-          await loadCalendar();
+          // Open the month-grid calendar for the current month by default
+          const now = new Date();
+          await loadCalendarGrid(now.getFullYear(), now.getMonth());
         }
 
         if (navContacts) {
@@ -822,6 +915,102 @@
                 </div>
               </div>`;
             events.insertAdjacentHTML('afterbegin', formHtml);
+            return;
+          }
+
+          // calendar-delete-event: delete event from inline calendar edit form
+          const calDeleteTrigger =
+            e.target.closest && e.target.closest('.calendar-delete-event');
+          if (calDeleteTrigger) {
+            e.preventDefault();
+            const confirmed = await showConfirmModal(
+              'Are you sure you want to delete this event? This action cannot be undone.',
+              'Delete',
+              'Cancel',
+            );
+            if (!confirmed) return;
+            const eventId = calDeleteTrigger.dataset.eventId;
+            try {
+              const res = await fetch(`/contacts/event/${eventId}/delete/`, {
+                method: 'DELETE',
+                headers: {
+                  'X-CSRFToken': getCookie('csrftoken'),
+                },
+              });
+              if (!res.ok) throw new Error('Delete failed');
+              // remove calendar anchor(s) and any open form
+              const anchor = document.querySelector(
+                `.calendar-event-item[data-event-id="${eventId}"]`,
+              );
+              if (anchor) anchor.remove();
+              const openForm = document.querySelector(
+                `.calendar-event-edit-form .calendar-delete-event[data-event-id="${eventId}"]`,
+              );
+              if (openForm) {
+                const formEl = openForm.closest('.calendar-event-edit-form');
+                if (formEl) formEl.remove();
+              }
+              // also remove an event-row from detail pane if present
+              const row = document.querySelector(
+                `.event-row[data-event-id="${eventId}"]`,
+              );
+              if (row) row.remove();
+              showBanner('Event deleted.', 'success');
+            } catch (err) {
+              console.error(err);
+              showBanner('Failed to delete event', 'error');
+            }
+            return;
+          }
+
+          // Calendar grid: open inline edit form when clicking an event chip
+          const calEventTrigger =
+            e.target.closest && e.target.closest('.calendar-event-item');
+          if (calEventTrigger) {
+            e.preventDefault();
+            const anchor = calEventTrigger;
+            const cell = anchor.closest('.calendar-cell');
+            if (!cell) return;
+            // prevent opening if this cell already has an inline calendar edit form
+            const existingForm = cell.querySelector(
+              '.calendar-event-edit-form',
+            );
+            if (existingForm) return;
+
+            const eventId = anchor.dataset.eventId;
+            const startAttr = anchor.dataset.start || '';
+            const endAttr = anchor.dataset.end || '';
+            const [sDate = '', sTime = ''] = startAttr.split('T');
+            const [eDate = '', eTime = ''] = endAttr.split('T');
+            const titleText = (anchor.textContent || '').trim();
+
+            const formHtml = `
+              <div class="calendar-event-edit-form event-form">
+                <input name="event_name" placeholder="Event name (optional)" value="${escapeHtml(titleText)}" />
+                <div class="form-row">
+                  <input type="date" name="start_date" value="${sDate}" />
+                  <input type="time" name="start_time" value="${sTime}" />
+                </div>
+                <div class="form-row">
+                  <input type="date" name="end_date" value="${eDate}" />
+                  <input type="time" name="end_time" value="${eTime}" />
+                </div>
+                <div class="controls">
+                    </a>
+                  <a href="#" class="calendar-delete-event image-button" data-event-id="${eventId}" aria-label="Delete event">
+                    <img src="{% static 'images/Component 3.png' %}" alt="Delete" />
+                  </a>
+                  <a href="#" class="calendar-update-event image-button" data-event-id="${eventId}" aria-label="Save event">
+                    <img src="{% static 'images/Component 1.png' %}" alt="Save event" />
+                  </a>
+                  <a href="#" class="calendar-cancel-edit-event image-button" data-event-id="${eventId}" aria-label="Cancel edit">
+                    <img src="{% static 'images/Component 2.png' %}" alt="Cancel" />
+                </div>
+              </div>`;
+
+            // hide the anchor and insert form after it
+            anchor.style.display = 'none';
+            anchor.insertAdjacentHTML('afterend', formHtml);
             return;
           }
 
@@ -1153,6 +1342,128 @@
               console.error(err);
               showBanner(err.message || 'Failed to update event', 'error');
               // keep edit form displayed so user can correct
+            }
+            return;
+          }
+
+          // calendar-update-event: save changes from inline edit form inside a calendar cell
+          const calUpdateTrigger =
+            e.target.closest && e.target.closest('.calendar-update-event');
+          if (calUpdateTrigger) {
+            e.preventDefault();
+            const eventId = calUpdateTrigger.dataset.eventId;
+            const form =
+              calUpdateTrigger.closest('.calendar-event-edit-form') ||
+              calUpdateTrigger.closest('.event-form');
+            if (!form) return;
+
+            const name = (
+              form.querySelector('input[name="event_name"]').value || ''
+            ).trim();
+            const start_date = form.querySelector(
+              'input[name="start_date"]',
+            ).value;
+            const start_time = form.querySelector(
+              'input[name="start_time"]',
+            ).value;
+            const end_date = form.querySelector('input[name="end_date"]').value;
+            const end_time = form.querySelector('input[name="end_time"]').value;
+
+            if (!start_date || !start_time || !end_date || !end_time) {
+              showBanner(
+                'Please provide start and end date/time for the event.',
+                'error',
+              );
+              return;
+            }
+            const newStart = new Date(`${start_date}T${start_time}`);
+            const newEnd = new Date(`${end_date}T${end_time}`);
+            if (
+              Number.isNaN(newStart.getTime()) ||
+              Number.isNaN(newEnd.getTime()) ||
+              newEnd <= newStart
+            ) {
+              showBanner(
+                'Please ensure the end time is after the start time.',
+                'error',
+              );
+              return;
+            }
+
+            try {
+              const res = await fetch(`/contacts/event/${eventId}/update/`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                  name,
+                  start_date,
+                  start_time,
+                  end_date,
+                  end_time,
+                }),
+              });
+              const json = await res.json().catch(() => ({}));
+              if (!res.ok)
+                throw new Error(
+                  (json && json.error) || 'Failed to update event',
+                );
+
+              // find the corresponding anchor in the calendar and update it
+              const anchor = document.querySelector(
+                `.calendar-event-item[data-event-id="${json.id}"]`,
+              );
+              if (anchor) {
+                anchor.textContent = escapeHtml(json.name || '');
+                anchor.dataset.start = `${json.start_date}T${json.start_time}`;
+                anchor.dataset.end = `${json.end_date}T${json.end_time}`;
+                // update title attribute to include contact name if present
+                const contactName =
+                  `${json.contact_first_name || ''} ${json.contact_last_name || ''}`.trim();
+                anchor.title = `${escapeHtml(json.name || '(no title)')} — ${escapeHtml(contactName)}`;
+                // remove the form and show anchor
+                const editForm =
+                  anchor.nextElementSibling &&
+                  anchor.nextElementSibling.classList &&
+                  anchor.nextElementSibling.classList.contains(
+                    'calendar-event-edit-form',
+                  )
+                    ? anchor.nextElementSibling
+                    : null;
+                if (editForm) editForm.remove();
+                anchor.style.display = '';
+              }
+              showBanner('Event updated.', 'success');
+            } catch (err) {
+              console.error(err);
+              showBanner(err.message || 'Failed to update event', 'error');
+            }
+            return;
+          }
+
+          // calendar-cancel-edit-event: cancel inline edit in calendar cell
+          const calCancelTrigger =
+            e.target.closest && e.target.closest('.calendar-cancel-edit-event');
+          if (calCancelTrigger) {
+            e.preventDefault();
+            const eventId = calCancelTrigger.dataset.eventId;
+            const form =
+              calCancelTrigger.closest('.calendar-event-edit-form') ||
+              calCancelTrigger.closest('.event-form');
+            if (!form) return;
+            // find the original anchor and restore
+            const anchor = document.querySelector(
+              `.calendar-event-item[data-event-id="${eventId}"]`,
+            );
+            if (anchor) {
+              // remove form and show anchor
+              form.remove();
+              anchor.style.display = '';
+            } else {
+              // just remove form
+              form.remove();
             }
             return;
           }
