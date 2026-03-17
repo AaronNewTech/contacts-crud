@@ -124,6 +124,15 @@ body {
   color: #579aff;
 }
 
+#add-event {
+  text-decoration: none;
+  color: #579aff;
+}
+
+#add-event img {
+  vertical-align: middle;
+}
+
 #add-method img,
 #save-contact img {
   vertical-align: middle;
@@ -132,7 +141,8 @@ body {
 #add-method:hover img,
 #save-contact:hover img,
 #cancel-contact:hover img,
-#delete-contact:hover img {
+#delete-contact:hover img,
+#add-event:hover img {
   filter: brightness(0.75);
 }
 
@@ -224,6 +234,74 @@ div#contact-detail a#add-method.image-button {
   display: inline-flex;
 }
 
+/* Event list and rows */
+.event-row {
+  margin-bottom: 0.5rem;
+}
+.event-row .event-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.event-row .event-text {
+  flex: 1;
+}
+.event-row .event-text .event-title {
+  font-weight: 600;
+}
+.event-row .event-text .event-meta {
+  color: #555;
+  font-size: 0.95rem;
+}
+.delete-event {
+  display: none;
+  margin-left: 8px;
+}
+.delete-event img {
+  height: 18px;
+  width: auto;
+  cursor: pointer;
+  display: block;
+}
+.event-row:hover .delete-event {
+  display: inline-flex;
+}
+
+/* Inline event form */
+.event-form {
+  margin-bottom: 0.75rem;
+  border: 1px solid #e6e6e6;
+  padding: 8px;
+  border-radius: 6px;
+}
+.event-form input[type='date'],
+.event-form input[type='time'],
+.event-form input[name='event_name'] {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d7e7ff;
+  background-color: #f9fbff;
+  margin-bottom: 6px;
+}
+.event-form .form-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.event-form .controls {
+  text-align: right;
+}
+.event-form .controls .image-button {
+  margin-right: 8px;
+}
+
+.no-events {
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
 /* visual marker for invalid field */
 .invalid {
   border: 1px solid #e33737 !important;
@@ -242,4 +320,89 @@ div#contact-detail a#add-method.image-button {
   background-color: #f9fbff;
   border: 1px solid #d7e7ff;
   opacity: 1; /* Ensures the color is vibrant in Firefox */
+}
+
+/* Hidden CSRF form helper */
+.hidden-csrf {
+  display: none;
+}
+
+/* Confirm modal styles (moved from inline in template) */
+#confirm-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+#confirm-modal .confirm-dialog {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  max-width: 420px;
+  margin: 16px;
+}
+.confirm-msg {
+  margin: 0 0 12px;
+  color: #082038;
+  font-weight: 600;
+}
+.confirm-actions {
+  text-align: right;
+}
+.confirm-cancel {
+  margin-right: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+.confirm-confirm {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 0;
+  background: #e74c3c;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* App banner moved from inline styles */
+#app-banner {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  font-weight: 600;
+  color: #03306b;
+  max-width: 90%;
+}
+#app-banner .app-banner-close {
+  background: transparent;
+  border: 0;
+  margin-left: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* small layout tweaks requested earlier */
+.method-controls {
+  margin-top: 0.75rem;
+}
+.bottom-controls {
+  margin-top: 1rem;
+}
+
+/* image spacing for add-method and add-event */
+#add-method img,
+#add-event img {
+  margin-right: 8px;
+  vertical-align: middle;
 }

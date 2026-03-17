@@ -4,9 +4,95 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotAllowed
-from .models import Contact
+from .models import Contact, ScheduledEvent
 from contact_method.models import ContactMethod
 import json
+
+
+def event_create_api(request, pk):
+    """Create a ScheduledEvent for the given contact.
+
+    Expects JSON: { name?, start_date: 'YYYY-MM-DD', start_time: 'HH:MM:SS', end_date: 'YYYY-MM-DD', end_time: 'HH:MM:SS' }
+    Returns the created event JSON on success with status 201.
+    """
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return HttpResponseBadRequest('Invalid JSON')
+
+    contact = get_object_or_404(Contact, pk=pk)
+
+    # Required fields
+    start_date = payload.get('start_date')
+    start_time = payload.get('start_time')
+    end_date = payload.get('end_date')
+    end_time = payload.get('end_time')
+
+    if not (start_date and start_time and end_date and end_time):
+        return JsonResponse({'error': 'start_date, start_time, end_date and end_time are required'}, status=400)
+
+    name = payload.get('name', '')
+
+    # Parse and validate date/time inputs to provide clearer errors and avoid 500s
+    from django.utils.dateparse import parse_date, parse_time
+
+    sd = parse_date(start_date)
+    st = parse_time(start_time)
+    ed = parse_date(end_date)
+    et = parse_time(end_time)
+
+    if not (sd and st and ed and et):
+        return JsonResponse({'error': 'Invalid date/time format. Use YYYY-MM-DD for dates and HH:MM or HH:MM:SS for times.'}, status=400)
+
+    # Ensure end is not before start (basic sanity check)
+    try:
+        from datetime import datetime
+
+        start_dt = datetime.combine(sd, st)
+        end_dt = datetime.combine(ed, et)
+        if end_dt < start_dt:
+            return JsonResponse({'error': 'Event end must be the same or after start.'}, status=400)
+    except Exception:
+        # If combine fails for unexpected reasons, return a generic error
+        return JsonResponse({'error': 'Invalid date/time values.'}, status=400)
+
+    try:
+        ev = ScheduledEvent.objects.create(
+            contact=contact,
+            name=name,
+            start_date=sd,
+            start_time=st,
+            end_date=ed,
+            end_time=et,
+        )
+    except Exception as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    out = {
+        'id': ev.pk,
+        'name': ev.name,
+        'start_date': ev.start_date.isoformat(),
+        'start_time': ev.start_time.isoformat(),
+        'end_date': ev.end_date.isoformat(),
+        'end_time': ev.end_time.isoformat(),
+    }
+    return JsonResponse(out, status=201)
+
+
+def event_delete_api(request, pk):
+    """API endpoint to delete a ScheduledEvent by id.
+
+    Accepts HTTP DELETE. Returns JSON { deleted: True, id: pk } on success.
+    """
+    if request.method != 'DELETE':
+        return HttpResponseNotAllowed(['DELETE'])
+
+    ev = get_object_or_404(ScheduledEvent, pk=pk)
+    ev.delete()
+    return JsonResponse({'deleted': True, 'id': pk})
 
 class ContactListView(ListView):
     model = Contact
@@ -35,6 +121,10 @@ def contact_api(request, pk):
     # Avoid relying on IDE inference of related attributes; query the
     # ContactMethod model explicitly to collect the type/value pairs.
     methods = list(ContactMethod.objects.filter(contact=contact).values("id", "type", "value"))
+    # include scheduled events for this contact
+    events = list(ScheduledEvent.objects.filter(contact=contact).order_by('start_date', 'start_time').values(
+        "id", "name", "start_date", "start_time", "end_date", "end_time"
+    ))
     data = {
         "id": contact.pk,
         "first_name": contact.first_name,
@@ -42,6 +132,7 @@ def contact_api(request, pk):
         "created_at": contact.created_at.isoformat(),
         "updated_at": contact.updated_at.isoformat(),
         "contact_methods": methods,
+        "events": events,
     }
     return JsonResponse(data)
 
@@ -95,6 +186,9 @@ def contact_update(request, pk):
 
     # return updated representation
     methods_out = list(ContactMethod.objects.filter(contact=contact).values('id', 'type', 'value'))
+    events_out = list(ScheduledEvent.objects.filter(contact=contact).order_by('start_date', 'start_time').values(
+        'id', 'name', 'start_date', 'start_time', 'end_date', 'end_time'
+    ))
     data = {
         'id': contact.pk,
         'first_name': contact.first_name,
@@ -102,6 +196,7 @@ def contact_update(request, pk):
         'created_at': contact.created_at.isoformat(),
         'updated_at': contact.updated_at.isoformat(),
         'contact_methods': methods_out,
+        'events': events_out,
     }
     return JsonResponse(data)
 
@@ -151,6 +246,7 @@ def contact_create_api(request):
         'created_at': c.created_at.isoformat(),
         'updated_at': c.updated_at.isoformat(),
         'contact_methods': list(ContactMethod.objects.filter(contact=c).values('id', 'type', 'value')),
+        'events': list(ScheduledEvent.objects.filter(contact=c).order_by('start_date', 'start_time').values('id', 'name', 'start_date', 'start_time', 'end_date', 'end_time')),
     }
     return JsonResponse(data, status=201)
 
