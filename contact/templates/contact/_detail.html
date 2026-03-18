@@ -2,9 +2,8 @@
 
 <div class="contact-detail">
   <h2>{{ contact.first_name }} {{ contact.last_name }}</h2>
-  <p><strong>Created:</strong> {{ contact.created_at }}</p>
-  <p><strong>Updated:</strong> {{ contact.updated_at }}</p>
 
+  <!-- The contact methods are displayed in a list. Each method shows its type (e.g. phone, email) and value (e.g. the phone number or email address). If there are no contact methods, it will display "No contact methods". -->
   <h3>Contact methods</h3>
   <ul>
     {% for method in contact.contact_methods.all %}

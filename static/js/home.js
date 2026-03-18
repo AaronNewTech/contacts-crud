@@ -1,9 +1,8 @@
-// Extracted from templates/home.html — moved inline JS to static file
-// Keeps original structure: helpers, formatters, and DOMContentLoaded handler
-
-// Small fetch wrapper that ensures CSRF header is attached for unsafe methods
-// and surfaces a helpful banner on 403 responses. It reads the CSRF token
-// from <meta name="csrf-token"> in the page head.
+// fetchJson(url, opts)
+// A small wrapper around fetch that automatically attaches the CSRF token
+// (read from <meta name="csrf-token">) for non-GET requests, sets
+// `credentials: 'same-origin'`, and shows a friendly banner on 403 errors.
+// Returns the raw fetch Response so callers can inspect status/json as needed.
 async function fetchJson(url, opts = {}) {
   const options = Object.assign({}, opts);
   options.headers = Object.assign({}, options.headers || {});
@@ -33,14 +32,14 @@ async function fetchJson(url, opts = {}) {
         'error',
         5000,
       );
-    } catch (e) {
-      /* ignore if showBanner missing */
-    }
+    } catch (e) {}
   }
   return res;
 }
 
-// Render a simple events list view of all events
+// renderCalendar(events)
+// Render a simple vertical list of events into the `#contact-detail`
+// pane. Each event shows title, contact name, and start/end meta.
 function renderCalendar(events) {
   const detailEl = document.getElementById('contact-detail');
   if (!detailEl) return;
@@ -76,6 +75,9 @@ function renderCalendar(events) {
   detailEl.innerHTML = html;
 }
 
+// loadCalendar()
+// Fetch all events from the API and render them using renderCalendar.
+// Errors are logged and a simple message is shown in the detail pane.
 async function loadCalendar() {
   const detailEl = document.getElementById('contact-detail');
   if (!detailEl) return;
@@ -90,7 +92,10 @@ async function loadCalendar() {
   }
 }
 
-// --- Grid month calendar ---
+// renderCalendarGrid(events, year, month)
+// Render a month grid calendar into `#contact-detail`. Events are
+// grouped by start_date and shown on their day cells. Adds previous/next
+// handlers to the month navigation buttons after render.
 function renderCalendarGrid(events, year, month) {
   const detailEl = document.getElementById('contact-detail');
   if (!detailEl) return;
@@ -153,6 +158,9 @@ function renderCalendarGrid(events, year, month) {
   });
 }
 
+// loadCalendarGrid(year, month)
+// Fetch events and render the month grid for the given year/month.
+// If year/month are omitted, the current date is used.
 async function loadCalendarGrid(year, month) {
   const detailEl = document.getElementById('contact-detail');
   if (!detailEl) return;
@@ -181,6 +189,9 @@ const _timeFormatter = new Intl.DateTimeFormat('en-US', {
   hour12: true,
 });
 
+// _toDate(dateStr, timeStr)
+// Parse ISO-like date and optional time into a JS Date. Returns null for
+// invalid inputs. Helper used by the formatting helpers below.
 function _toDate(dateStr, timeStr) {
   if (!dateStr) return null;
   const iso = timeStr ? `${dateStr}T${timeStr}` : `${dateStr}T00:00`;
@@ -189,18 +200,26 @@ function _toDate(dateStr, timeStr) {
   return d;
 }
 
+// formatDate(dateStr, timeStr)
+// Return a user-friendly date string for the given parts (uses
+// Intl.DateTimeFormat). Returns empty string for invalid input.
 function formatDate(dateStr, timeStr) {
   const d = _toDate(dateStr, timeStr);
   if (!d) return '';
   return _dateFormatter.format(d);
 }
 
+// formatTimeFromParts(dateStr, timeStr)
+// Return a user-friendly time string for the given parts. Empty string
+// for invalid input.
 function formatTimeFromParts(dateStr, timeStr) {
   const d = _toDate(dateStr, timeStr);
   if (!d) return '';
   return _timeFormatter.format(d);
 }
 
+// formatStart(dateStr, timeStr)
+// Helper to produce a combined "DATE at TIME" string when possible.
 function formatStart(dateStr, timeStr) {
   if (!dateStr && !timeStr) return '';
   const datePart = formatDate(dateStr, timeStr);
@@ -209,14 +228,9 @@ function formatStart(dateStr, timeStr) {
   return `${datePart} at ${timePart}`;
 }
 
-function formatUntil(dateStr, timeStr) {
-  if (!dateStr && !timeStr) return '';
-  const datePart = formatDate(dateStr, timeStr);
-  const timePart = formatTimeFromParts(dateStr, timeStr);
-  if (!timePart) return datePart;
-  return `${datePart} until ${timePart}`;
-}
-
+// escapeHtml(str)
+// Simple HTML-escaping helper to avoid injecting raw user content into
+// generated HTML fragments.
 function escapeHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -226,6 +240,11 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// renderDetail(data)
+// Build the contact detail form (name, contact methods) and the list of
+// events for the contact, then insert into `#contact-detail`.
+// The returned HTML contains controls wired to the global click/submit
+// handlers in the DOMContentLoaded block.
 function renderDetail(data) {
   const detailEl = document.getElementById('contact-detail');
   let html = `
@@ -321,6 +340,9 @@ function renderDetail(data) {
   detailEl.innerHTML = html;
 }
 
+// loadDetail(pk)
+// Fetch contact detail from the API and render it. On error, show a
+// short error message in the detail pane.
 async function loadDetail(pk) {
   const detailEl = document.getElementById('contact-detail');
   try {
@@ -335,6 +357,10 @@ async function loadDetail(pk) {
   }
 }
 
+// setActiveItem(item)
+// Manage the active selection in the left-hand contact list: clear the
+// previous active item, mark the new one, and focus it for keyboard
+// users.
 function setActiveItem(item) {
   if (!item) return;
   const prev = document.querySelector('.contact-item.active');
@@ -347,6 +373,9 @@ function setActiveItem(item) {
   item.focus();
 }
 
+// showBanner(message, type, timeout)
+// Show a temporary banner at the top of the page for non-blocking
+// feedback (success/info/error). Automatically hides after `timeout` ms.
 function showBanner(message, type = 'info', timeout = 3500) {
   const banner = document.getElementById('app-banner');
   const msg = document.getElementById('app-banner-msg');
@@ -374,6 +403,10 @@ function showBanner(message, type = 'info', timeout = 3500) {
   };
 }
 
+// showConfirmModal(message, confirmText, cancelText)
+// Display a simple confirm modal and return a Promise that resolves to
+// true (confirmed) or false (cancelled). The modal is fully cleaned up
+// after the user makes a choice.
 function showConfirmModal(
   message,
   confirmText = 'Delete',
@@ -424,6 +457,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // compareNames(aFirst, aLast, bFirst, bLast)
+  // Compare two names for sorting: primarily by last name, then by first
+  // name. Case-insensitive. Missing names are treated as empty strings.    
   function compareNames(aFirst, aLast, bFirst, bLast) {
     const aL = (aLast || '').toLowerCase();
     const bL = (bLast || '').toLowerCase();
@@ -436,6 +472,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return 0;
   }
 
+  // placeListItemByName(itemEl, firstName, lastName)
+  // Given a contact item element and its associated first/last name, place
+  // it in the correct sorted position within the contact list. Sorting is
+  // by last name, then first name (case-insensitive). If the item is not
+  // already in the list, it will be added.
   function placeListItemByName(itemEl, firstName, lastName) {
     if (!itemEl) return;
     const ul = document.querySelector('#contact-list ul');
@@ -477,6 +518,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // validateForm(formEl)
+  // Validate the contact form: first name, last name, and at least one
+  // contact method are required. Email methods must be in valid format,
+  // and duplicate email addresses are not allowed. Invalid fields are
+  // marked with the "invalid" class, and a summary message is returned.
   function validateForm(formEl) {
     if (!formEl)
       return {
@@ -580,7 +626,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const list = document.getElementById('contact-list');
   const navContacts = document.getElementById('nav-contacts');
   const navCalendar = document.getElementById('nav-calendar');
-
+  
+  // showContactsView() switches to the contact list view: shows the contact list, marks the contacts nav item active, and loads the detail for the currently active contact (or the first contact if none active).
   function showContactsView() {
     const cl = document.getElementById('contact-list');
     if (cl) cl.style.display = '';
@@ -603,6 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // showCalendarView() switches to the calendar view: hides the contact list, marks the calendar nav item active, and loads the current month grid.
   async function showCalendarView() {
     const cl = document.getElementById('contact-list');
     if (cl) cl.style.display = 'none';
@@ -739,6 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Global click handler for event-related actions: add, edit, delete. Uses event delegation to handle clicks on dynamically generated controls within the events list and calendar.
   document.body.addEventListener('click', async (e) => {
     const addEventTrigger = e.target.closest && e.target.closest('#add-event');
     if (addEventTrigger) {
@@ -766,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle delete event from both the calendar and the event list. Shows a confirm modal before deleting, then removes the event from the UI on success.
     const calDeleteTrigger =
       e.target.closest && e.target.closest('.calendar-delete-event');
     if (calDeleteTrigger) {
@@ -805,6 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle click on an existing event in the calendar to open the edit form. If an edit form is already open for that event, does nothing.
     const calEventTrigger =
       e.target.closest && e.target.closest('.calendar-event-item');
     if (calEventTrigger) {
@@ -848,6 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle save of a new event from the contact detail view. Validates the input, checks for overlapping events, then creates the event via the API and adds it to the list on success.
     const saveEventTrigger =
       e.target.closest && e.target.closest('#save-event');
     if (saveEventTrigger) {
@@ -985,6 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle cancel of event creation or editing: simply remove the form from the UI. If editing an existing event, the original event display will be restored when the form is removed.
     const cancelEventTrigger =
       e.target.closest && e.target.closest('#cancel-event');
     if (cancelEventTrigger) {
@@ -994,6 +1047,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle click on an existing event in the event list to open the edit form. If an edit form is already open for that event, does nothing. The edit form includes a delete button that allows deleting the event directly from the edit form.
     const clickedEventRow = e.target.closest && e.target.closest('.event-row');
     if (
       clickedEventRow &&
@@ -1039,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle save of an edited event from the contact detail view. Validates the input, checks for overlapping events, then updates the event via the API and updates the display on success.
     const updateTrigger = e.target.closest && e.target.closest('#update-event');
     if (updateTrigger) {
       e.preventDefault();
@@ -1137,6 +1192,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle save of an edited event from the calendar view. Validates the input, checks for overlapping events, then updates the event via the API and updates the display on success. If the event is moved to a different date, it will be moved to the correct position in the calendar grid.
     const calUpdateTrigger =
       e.target.closest && e.target.closest('.calendar-update-event');
     if (calUpdateTrigger) {
@@ -1217,6 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle cancel of event editing from the calendar view: simply remove the form from the UI and restore the original event display.
     const calCancelTrigger =
       e.target.closest && e.target.closest('.calendar-cancel-edit-event');
     if (calCancelTrigger) {
@@ -1238,6 +1295,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle cancel of event editing from the event list view: simply remove the form from the UI and restore the original event display.
     const cancelEditTrigger =
       e.target.closest && e.target.closest('#cancel-edit-event');
     if (cancelEditTrigger) {
@@ -1250,6 +1308,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle save of the contact form from the detail view: validates the input, then creates or updates the contact via the API and updates the list and detail display on success.
     const saveTrigger = e.target.closest && e.target.closest('#save-contact');
     if (saveTrigger) {
       e.preventDefault();
@@ -1275,6 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle delete of a contact method from the detail view. Shows a confirm modal before deleting, then removes the method from the UI on success. If the method has an ID, it will be deleted via the API; if not, it will simply be removed from the form (used for unsaved new methods).
     const deleteTrigger =
       e.target.closest && e.target.closest('.delete-method');
     if (deleteTrigger) {
@@ -1312,6 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle delete of an event from the event list. Shows a confirm modal before deleting, then removes the event from the UI on success. If the event has an ID, it will be deleted via the API; if not, it will simply be removed from the list (used for unsaved new events).
     const deleteEventTrigger =
       e.target.closest && e.target.closest('.delete-event');
     if (deleteEventTrigger) {
@@ -1344,6 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle delete of a contact from the contact detail view. Shows a confirm modal before deleting, then removes the contact from the UI on success. If the contact has an ID, it will be deleted via the API; if not, it will simply be removed from the list (used for unsaved new contacts).
     const deleteContactTrigger =
       e.target.closest && e.target.closest('#delete-contact');
     if (deleteContactTrigger) {
@@ -1390,6 +1452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle cancel of edits from the contact detail view: if the contact is new and unsaved, it will be removed from the list; if it's an existing contact, the changes will be reverted to the last saved state.
     const cancelTrigger =
       e.target.closest && e.target.closest('#cancel-contact');
     if (cancelTrigger) {
@@ -1423,6 +1486,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Handle add of a new contact method from the contact detail view: adds a new method row to the form. The new method will be saved when the contact form is submitted. There is no limit to the number of methods that can be added.
     const addTrigger = e.target.closest && e.target.closest('#add-method');
     if (addTrigger) {
       e.preventDefault();
@@ -1444,6 +1508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Keyboard navigation for contact list: allows using arrow keys to navigate the list and Enter/Space to load the selected contact's details. This improves accessibility and allows power users to navigate more quickly without relying on the mouse.
   list.addEventListener('keydown', (e) => {
     const item = e.target.closest('.contact-item');
     if (!item) return;
@@ -1455,6 +1520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // On initial page load, check if there is a "new" query parameter in the URL. If so, try to find the corresponding contact item in the list and load its details. This allows linking directly to a new contact that was just created. If the item is not found (e.g. because the page was refreshed before the new contact was saved), it will still attempt to load the details which may show an error or empty state until the contact is properly saved.
   const params = new URLSearchParams(window.location.search);
   const newId = params.get('new');
   if (newId) {

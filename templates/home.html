@@ -9,8 +9,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}" />
   </head>
   <body>
-    <!-- CSRF token now provided in a meta tag in <head> for JS to read -->
-    <!-- confirm modal (custom) -->
+    <!-- Simple confirm modal used by client-side delete/confirm flows -->
     <div id="confirm-modal" role="dialog" aria-modal="true">
       <div class="confirm-dialog">
         <p id="confirm-modal-msg" class="confirm-msg"></p>
@@ -24,6 +23,7 @@
         </div>
       </div>
     </div>
+    <!-- Banner for non-blocking status messages (populated by JS) -->
     <div id="app-banner" aria-live="polite">
       <span id="app-banner-msg"></span>
       <button
@@ -35,7 +35,7 @@
       </button>
     </div>
 
-    <!-- Top navigation: Contacts and Events list views -->
+    <!-- Top navigation: Contacts and Calendar views -->
     <nav id="main-nav" class="main-nav">
       <a href="#" id="nav-contacts" class="nav-link active" data-view="contacts"
         >Contacts</a
@@ -46,6 +46,7 @@
     </nav>
 
     <div class="layout">
+      <!-- Left column: contact list (server-rendered, JS enhances interactivity) -->
       <div id="contact-list">
         <div class="header">
           <h1>Contacts</h1>
@@ -74,15 +75,11 @@
           {% endfor %}
         </ul>
       </div>
-
-      <div id="contact-detail">
-        <!-- detail will be loaded here -->
-      </div>
+      <!-- Right column: contact/event detail pane; JS injects content here -->
+      <div id="contact-detail"></div>
     </div>
 
-    
-<script src="{% static 'js/home.js' %}" defer></script>
-
-
+    <!-- Main client script: fetch helpers, renderers, and event wiring -->
+    <script src="{% static 'js/home.js' %}" defer></script>
   </body>
 </html>
