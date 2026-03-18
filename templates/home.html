@@ -5,9 +5,11 @@
     <title>{% block title %}Contacts CRUD{% endblock title %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/home.css' %}" />
+    <!-- Expose CSRF token explicitly for JS fetch helpers -->
+    <meta name="csrf-token" content="{{ csrf_token }}" />
   </head>
   <body>
-    <form id="csrf-form" class="hidden-csrf">{% csrf_token %}</form>
+    <!-- CSRF token now provided in a meta tag in <head> for JS to read -->
     <!-- confirm modal (custom) -->
     <div id="confirm-modal" role="dialog" aria-modal="true">
       <div class="confirm-dialog">
@@ -79,22 +81,55 @@
     </div>
 
     <script>
-      // helper to read cookies (used for CSRF token)
-      function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-          const cookies = document.cookie.split(';');
-          for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === name + '=') {
-              cookieValue = decodeURIComponent(
-                cookie.substring(name.length + 1),
-              );
-              break;
+      // Small fetch wrapper that ensures CSRF header is attached for unsafe methods
+      // and surfaces a helpful banner on 403 responses. It inlines cookie parsing
+      // for the CSRF token so there's a single place of truth and no global helper.
+      async function fetchJson(url, opts = {}) {
+        const options = Object.assign({}, opts);
+        options.headers = Object.assign({}, options.headers || {});
+        const method = (options.method || 'GET').toUpperCase();
+        // Attach CSRF token for non-safe methods, unless already provided.
+        // Strict mode: read only from explicit meta tag in <head>. This
+        // avoids duplicated cookie parsing and ensures a single source of
+        // truth for AJAX requests. If the meta tag is missing, the request
+        // will proceed without the header (server will reject if required).
+        if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+          if (
+            !options.headers['X-CSRFToken'] &&
+            !options.headers['x-csrftoken']
+          ) {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && meta.content) {
+              options.headers['X-CSRFToken'] = meta.content;
+            } else {
+              // Helpful one-time warning during rollout so missing meta tags are
+              // visible in developer consoles without flooding logs.
+              if (!fetchJson._warnedNoMeta) {
+                console.warn(
+                  'fetchJson: CSRF meta tag missing; AJAX requests requiring CSRF may fail.',
+                );
+                fetchJson._warnedNoMeta = true;
+              }
             }
           }
         }
-        return cookieValue;
+        // Default credentials to same-origin to ensure cookies are sent
+        if (!options.credentials) options.credentials = 'same-origin';
+
+        const res = await fetch(url, options);
+        if (res.status === 403) {
+          // Friendly guidance for CSRF/permission failures
+          try {
+            showBanner(
+              'Request blocked (permission or CSRF). Please refresh the page.',
+              'error',
+              5000,
+            );
+          } catch (e) {
+            /* ignore if showBanner missing */
+          }
+        }
+        return res;
       }
 
       // Render a simple events list view of all events
@@ -137,7 +172,7 @@
         const detailEl = document.getElementById('contact-detail');
         if (!detailEl) return;
         try {
-          const res = await fetch('/contacts/api/events/');
+          const res = await fetchJson('/contacts/api/events/');
           if (!res.ok) throw new Error('Failed to load events');
           const data = await res.json();
           renderCalendar(data.events || []);
@@ -225,7 +260,7 @@
         const detailEl = document.getElementById('contact-detail');
         if (!detailEl) return;
         try {
-          const res = await fetch('/contacts/api/events/');
+          const res = await fetchJson('/contacts/api/events/');
           if (!res.ok) throw new Error('Failed to load events');
           const data = await res.json();
           const now = new Date();
@@ -398,7 +433,7 @@
       async function loadDetail(pk) {
         const detailEl = document.getElementById('contact-detail');
         try {
-          const res = await fetch(`/contacts/api/${pk}/`);
+          const res = await fetchJson(`/contacts/api/${pk}/`);
           if (!res.ok) throw new Error('Network response was not ok');
           const data = await res.json();
           renderDetail(data);
@@ -817,11 +852,10 @@
             try {
               if (pk) {
                 // existing contact -> update
-                const res = await fetch(`/contacts/api/${pk}/update/`, {
+                const res = await fetchJson(`/contacts/api/${pk}/update/`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
                   },
                   body: JSON.stringify(payload),
                 });
@@ -848,11 +882,10 @@
                 }
               } else {
                 // new (not yet persisted) -> create
-                const res = await fetch('/contacts/api/create/', {
+                const res = await fetchJson('/contacts/api/create/', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
                   },
                   body: JSON.stringify(payload),
                 });
@@ -931,12 +964,10 @@
             if (!confirmed) return;
             const eventId = calDeleteTrigger.dataset.eventId;
             try {
-              const res = await fetch(`/contacts/event/${eventId}/delete/`, {
-                method: 'DELETE',
-                headers: {
-                  'X-CSRFToken': getCookie('csrftoken'),
-                },
-              });
+              const res = await fetchJson(
+                `/contacts/event/${eventId}/delete/`,
+                { method: 'DELETE' },
+              );
               if (!res.ok) throw new Error('Delete failed');
               // remove calendar anchor(s) and any open form
               const anchor = document.querySelector(
@@ -1088,20 +1119,22 @@
               }
             }
             try {
-              const res = await fetch(`/contacts/api/${pk}/events/create/`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': getCookie('csrftoken'),
+              const res = await fetchJson(
+                `/contacts/api/${pk}/events/create/`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name,
+                    start_date,
+                    start_time,
+                    end_date,
+                    end_time,
+                  }),
                 },
-                body: JSON.stringify({
-                  name,
-                  start_date,
-                  start_time,
-                  end_date,
-                  end_time,
-                }),
-              });
+              );
               if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 throw new Error((err && err.error) || 'Failed to create event');
@@ -1300,20 +1333,22 @@
             }
 
             try {
-              const res = await fetch(`/contacts/event/${eventId}/update/`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': getCookie('csrftoken'),
+              const res = await fetchJson(
+                `/contacts/event/${eventId}/update/`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name,
+                    start_date,
+                    start_time,
+                    end_date,
+                    end_time,
+                  }),
                 },
-                body: JSON.stringify({
-                  name,
-                  start_date,
-                  start_time,
-                  end_date,
-                  end_time,
-                }),
-              });
+              );
               const json = await res.json().catch(() => ({}));
               if (!res.ok) {
                 throw new Error(
@@ -1391,20 +1426,22 @@
             }
 
             try {
-              const res = await fetch(`/contacts/event/${eventId}/update/`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': getCookie('csrftoken'),
+              const res = await fetchJson(
+                `/contacts/event/${eventId}/update/`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name,
+                    start_date,
+                    start_time,
+                    end_date,
+                    end_time,
+                  }),
                 },
-                body: JSON.stringify({
-                  name,
-                  start_date,
-                  start_time,
-                  end_date,
-                  end_time,
-                }),
-              });
+              );
               const json = await res.json().catch(() => ({}));
               if (!res.ok)
                 throw new Error(
@@ -1526,14 +1563,9 @@
             if (methodId) {
               // request server delete
               try {
-                const res = await fetch(
+                const res = await fetchJson(
                   `/contacts/method/${methodId}/delete/`,
-                  {
-                    method: 'DELETE',
-                    headers: {
-                      'X-CSRFToken': getCookie('csrftoken'),
-                    },
-                  },
+                  { method: 'DELETE' },
                 );
                 if (!res.ok) throw new Error('Delete failed');
                 // removed on success
@@ -1572,10 +1604,10 @@
             const eventId = deleteEventTrigger.dataset.eventId;
             if (eventId) {
               try {
-                const res = await fetch(`/contacts/event/${eventId}/delete/`, {
-                  method: 'DELETE',
-                  headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                });
+                const res = await fetchJson(
+                  `/contacts/event/${eventId}/delete/`,
+                  { method: 'DELETE' },
+                );
                 if (!res.ok) throw new Error('Delete failed');
                 const json = await res.json().catch(() => ({}));
                 if (row) row.remove();
@@ -1629,11 +1661,8 @@
 
             // persisted contact: request server delete
             try {
-              const res = await fetch(`/contacts/api/${pk}/delete/`, {
+              const res = await fetchJson(`/contacts/api/${pk}/delete/`, {
                 method: 'DELETE',
-                headers: {
-                  'X-CSRFToken': getCookie('csrftoken'),
-                },
               });
               if (!res.ok) throw new Error('Delete failed');
               const json = await res.json();

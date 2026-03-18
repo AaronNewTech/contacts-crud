@@ -13,3 +13,4 @@ prod_before_fix.dump
 prod_data_before_fix.json
 prod_snapshot_before_restore_attempt.dump
 __pycache__/
+tools/smoke.sh

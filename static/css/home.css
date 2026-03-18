@@ -176,13 +176,6 @@ body {
   padding: 6px; /* clickable area */
 }
 
-/* 
-#save-contact img {
-  height: 36px;
-  width: auto;
-  display: block;
-} */
-
 /* Stronger specificity for detail-pane image buttons so inline styles aren't required */
 #contact-detail .image-button,
 #contact-detail a.image-button {
