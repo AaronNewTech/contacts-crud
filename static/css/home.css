@@ -142,7 +142,9 @@ body {
 #save-contact:hover img,
 #cancel-contact:hover img,
 #delete-contact:hover img,
-#add-event:hover img {
+#add-event:hover img,
+.image-button:hover img,
+.image-button img:hover {
   filter: brightness(0.75);
 }
 
