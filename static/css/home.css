@@ -2,7 +2,6 @@ h1 {
   font-family: Lato;
   font-weight: 400;
   font-size: 36px;
-  /* leading-trim: NONE; */
   line-height: 100%;
   letter-spacing: 0%;
   color: #000000;
@@ -10,7 +9,6 @@ h1 {
   height: 43;
   top: 14px;
   left: 17px;
-  /* angle: 0 deg; */
   opacity: 1;
 }
 
@@ -25,13 +23,10 @@ h1 {
   display: block;
   width: 100%;
   text-align: left;
-  /* padding: 0.3rem 0.3rem; */
-  /* border: 14px; */
   background: transparent;
   cursor: pointer;
   transition: background-color 0.12s ease;
-  /* margin-left: 3%;
-  padding-right: -8%; */
+
 }
 
 .contact-item:hover {
@@ -41,19 +36,15 @@ h1 {
 }
 
 .contact-item:focus {
-  /* outline: 3px solid rgba(21,156,228,0.35); */
   background: #579aff;
   color: #fff;
   outline-offset: 2px;
-  /* background: rgba(0,0,0,0.03); */
 }
 
-/* optional: active state */
 .contact-item.active {
   background: rgba(21, 156, 228, 0.08);
 }
 
-/* Layout: keep list on the left and details on the right */
 html,
 body {
   height: 100%;
@@ -69,8 +60,8 @@ body {
 
 #contact-list {
   width: 20%;
-  min-width: 220px; /* keep readable on narrow screens */
-  max-width: 220px; /* prevent it from dominating on wide screens */
+  min-width: 220px;
+  max-width: 220px;
   box-sizing: border-box;
   padding: 1rem;
   overflow-y: auto;
@@ -79,7 +70,7 @@ body {
 
 #contact-detail {
   flex: 1 1 0;
-  min-width: 0; /* allow flex children to shrink properly */
+  min-width: 0;
   padding: 1rem 2rem;
   box-sizing: border-box;
   overflow-y: auto;
@@ -94,14 +85,12 @@ body {
   color: #fff;
 }
 
-/* Remove bullets and default padding for the contact list */
 #contact-list ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/* Image button styling: remove default link chrome, keep image-only look */
 .image-button {
   display: inline-block;
   padding: 0;
@@ -109,7 +98,7 @@ body {
   background: none;
   border: 0;
   text-decoration: none;
-  color: #579aff; /* fallback color for accessible text */
+  color: #579aff;
 }
 
 .image-button img {
@@ -118,7 +107,6 @@ body {
   width: auto;
 }
 
-/* Specific anchors used as image buttons */
 #add-method {
   text-decoration: none;
   color: #579aff;
@@ -148,16 +136,13 @@ body {
   filter: brightness(0.75);
 }
 
-/* Position the save control at the bottom-right of the viewport so it's
-   visually separate from the Add/Methods controls. Use fixed positioning
-   and keep it accessible on small screens. */
 #save-contact {
   position: fixed;
   right: 0.5rem;
   bottom: 1rem;
   z-index: 1200;
   border-radius: 6px;
-  padding: 6px; /* clickable area */
+  padding: 6px;
 }
 
 #cancel-contact {
@@ -166,7 +151,7 @@ body {
   bottom: 1rem;
   z-index: 1200;
   border-radius: 6px;
-  padding: 6px; /* clickable area */
+  padding: 6px;
 }
 
 #delete-contact {
@@ -175,10 +160,9 @@ body {
   bottom: 1rem;
   z-index: 1200;
   border-radius: 6px;
-  padding: 6px; /* clickable area */
+  padding: 6px;
 }
 
-/* Stronger specificity for detail-pane image buttons so inline styles aren't required */
 #contact-detail .image-button,
 #contact-detail a.image-button {
   display: inline-flex;
@@ -192,18 +176,14 @@ body {
   vertical-align: middle;
 }
 
-/* Nudge the add-method control up slightly for visual alignment */
 #add-method {
-  /* small upward shift; tweak px value to taste */
   transform: translateY(-3px);
 }
 
-/* Fallback: if something else is overriding, use a slightly more specific rule */
 div#contact-detail a#add-method.image-button {
   transform: translateY(-3px);
 }
 
-/* Method row delete icon styling */
 .method-row {
   display: flex;
   align-items: center;
@@ -229,7 +209,6 @@ div#contact-detail a#add-method.image-button {
   display: inline-flex;
 }
 
-/* Event list and rows */
 .event-row {
   margin-bottom: 0.5rem;
 }
@@ -245,47 +224,51 @@ div#contact-detail a#add-method.image-button {
 .event-row .event-text .event-title {
   font-weight: 600;
 }
-/* truncate long titles so the remove icon stays visible */
+
 .event-row .event-text .event-title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .event-header {
   display: flex;
-  /* align to the top so the delete icon stays next to the first line of the title */
   align-items: flex-start;
   gap: 0.5rem;
 }
+
 .event-header .event-title {
   display: block;
   flex: 1 1 auto;
-  min-width: 0; /* allow truncation inside flex */
+  min-width: 0;
 }
+
 .delete-event {
-  /* ensure icon sits at the top of the header */
   align-self: flex-start;
 }
+
 .event-row .event-text .event-meta {
   color: #555;
   font-size: 0.95rem;
 }
 
-/* Stack start and end lines vertically and style labels */
 .event-row .event-text .event-meta {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
+
 .event-row .event-text .event-meta .meta-label {
   font-weight: 600;
   margin-right: 0.25rem;
 }
+
 .event-row .event-text .event-meta .event-start,
 .event-row .event-text .event-meta .event-end {
   color: #333;
   font-size: 0.95rem;
 }
+
 .delete-event {
   display: none;
   background: none;
@@ -293,6 +276,7 @@ div#contact-detail a#add-method.image-button {
   padding: 0;
   margin-left: 4px;
 }
+
 .delete-event img {
   height: 18px;
   width: auto;
@@ -304,13 +288,13 @@ div#contact-detail a#add-method.image-button {
   display: inline-flex;
 }
 
-/* Inline event form */
 .event-form {
   margin-bottom: 0.75rem;
   border: 1px solid #e6e6e6;
   padding: 8px;
   border-radius: 6px;
 }
+
 .event-form input[type='date'],
 .event-form input[type='time'],
 .event-form input[name='event_name'] {
@@ -321,14 +305,17 @@ div#contact-detail a#add-method.image-button {
   background-color: #f9fbff;
   margin-bottom: 6px;
 }
+
 .event-form .form-row {
   display: flex;
   gap: 8px;
   margin-bottom: 6px;
 }
+
 .event-form .controls {
   text-align: right;
 }
+
 .event-form .controls .image-button {
   margin-right: 8px;
 }
@@ -338,13 +325,11 @@ div#contact-detail a#add-method.image-button {
   margin-bottom: 0.5rem;
 }
 
-/* visual marker for invalid field */
 .invalid {
   border: 1px solid #e33737 !important;
   box-shadow: 0 0 0 3px rgba(227, 55, 55, 0.12);
 }
 
-/* Style the contact method select and value input to match requested look */
 #contact-detail .method-row select,
 #contact-detail .method-row input[name^='method_value_'] {
   border: 1px solid #d7e7ff;
@@ -355,15 +340,13 @@ div#contact-detail a#add-method.image-button {
 #last-name {
   background-color: #f9fbff;
   border: 1px solid #d7e7ff;
-  opacity: 1; /* Ensures the color is vibrant in Firefox */
+  opacity: 1;
 }
 
-/* Hidden CSRF form helper */
 .hidden-csrf {
   display: none;
 }
 
-/* Confirm modal styles (moved from inline in template) */
 #confirm-modal {
   display: none;
   position: fixed;
@@ -372,6 +355,7 @@ div#contact-detail a#add-method.image-button {
   justify-content: center;
   z-index: 1100;
 }
+
 #confirm-modal .confirm-dialog {
   background: #fff;
   padding: 16px;
@@ -380,14 +364,17 @@ div#contact-detail a#add-method.image-button {
   max-width: 420px;
   margin: 16px;
 }
+
 .confirm-msg {
   margin: 0 0 12px;
   color: #082038;
   font-weight: 600;
 }
+
 .confirm-actions {
   text-align: right;
 }
+
 .confirm-cancel {
   margin-right: 8px;
   padding: 8px 12px;
@@ -396,6 +383,7 @@ div#contact-detail a#add-method.image-button {
   background: #fff;
   cursor: pointer;
 }
+
 .confirm-confirm {
   padding: 8px 12px;
   border-radius: 6px;
@@ -405,7 +393,6 @@ div#contact-detail a#add-method.image-button {
   cursor: pointer;
 }
 
-/* App banner moved from inline styles */
 #app-banner {
   display: none;
   position: fixed;
@@ -420,6 +407,7 @@ div#contact-detail a#add-method.image-button {
   color: #03306b;
   max-width: 90%;
 }
+
 #app-banner .app-banner-close {
   background: transparent;
   border: 0;
@@ -428,7 +416,6 @@ div#contact-detail a#add-method.image-button {
   font-weight: 700;
 }
 
-/* Top navigation */
 .main-nav {
   display: flex;
   gap: 1rem;
@@ -436,6 +423,7 @@ div#contact-detail a#add-method.image-button {
   background: #ffffff;
   border-bottom: 1px solid #e6eefc;
 }
+
 .main-nav .nav-link {
   color: #034f8a;
   text-decoration: none;
@@ -443,52 +431,56 @@ div#contact-detail a#add-method.image-button {
   padding: 6px 10px;
   border-radius: 6px;
 }
+
 .main-nav .nav-link.active {
   background: #e6f1ff;
   color: #032b50;
 }
 
-/* small layout tweaks requested earlier */
 .method-controls {
   margin-top: 0.75rem;
 }
+
 .bottom-controls {
   margin-top: 1rem;
 }
 
-/* image spacing for add-method and add-event */
 #add-method img,
 #add-event img {
   margin-right: 8px;
   vertical-align: middle;
 }
 
-/* Month grid calendar styles */
 .grid-calendar {
   max-width: 980px;
   margin: 0 auto;
 }
+
 .grid-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
+
 .grid-header .grid-title {
   font-weight: 700;
   font-size: 1.25rem;
 }
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 8px;
 }
+
 .calendar-grid .dow {
   font-weight: 700;
   text-align: center;
   padding: 6px 4px;
   color: #244e6a;
 }
+
 .calendar-cell {
   min-height: 90px;
   border: 1px solid #e6eefc;
@@ -499,22 +491,26 @@ div#contact-detail a#add-method.image-button {
   display: flex;
   flex-direction: column;
 }
+
 .calendar-cell.empty {
   background: transparent;
   border: 0;
 }
+
 .cell-day {
   font-size: 0.95rem;
   font-weight: 700;
   color: #032b50;
   margin-bottom: 6px;
 }
+
 .cell-events {
   display: flex;
   flex-direction: column;
   gap: 4px;
   overflow: hidden;
 }
+
 .calendar-event-item {
   display: inline-block;
   text-decoration: none;
@@ -527,16 +523,17 @@ div#contact-detail a#add-method.image-button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .calendar-event-item:hover {
   background: #e6f4ff;
 }
+
 .more {
   color: #666;
   font-size: 0.85rem;
 }
 
 @media (max-width: 880px) {
-  /* stack into fewer columns on small screens for readability */
   .calendar-grid {
     grid-template-columns: repeat(4, 1fr);
   }
